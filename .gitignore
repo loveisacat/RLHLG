@@ -161,3 +161,4 @@ cython_debug/
 
 #Not to update models
 rl-starter-files/storage/
+rl-starter-files/result/
