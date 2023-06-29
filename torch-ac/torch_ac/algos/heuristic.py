@@ -2,10 +2,10 @@
 
 
 class HeuriRules:
-    def  complex_rules(obs,action):
+    def complex_rule(obs,action):
             for k in (0,len(obs)-1):
                 #If it is in the local area
-                if(obs[k]['image'][3][-2][0] == 9):
+                if(obs[k]['image'][3][-2][0] == 9 and action[k] == 2):
                       has_hole = 0
                       for l in (0,len(obs[k]['image'])-1):
                                hole = obs[k]['image'][l][-2][0]
@@ -19,14 +19,14 @@ class HeuriRules:
                                    break
                       #If there is no hole, towards the opposite to the "0"(none) or "2"(wall) 
                       if(has_hole == 0):
-                           if(obs[k]['image'][0][-2][0] == 0 or obs[k]['image'][0][-2][0] == 2):
-                               action[k] = 1
-                           else:
+                           if(obs[k]['image'][-1][-2][0] == 0 or obs[k]['image'][-1][-2][0] == 2):
                                action[k] = 0
+                           else:
+                               action[k] = 1
             return action
    
    # The simple_rule is to change the direction when the agent want to go into the obs '9'(lava)
-   def simple_rule(obs,action)
+   def simple_rule(obs,action):
         for k in (0,len(obs)-1):
             if(obs[k]['image'][3][-2][0] == 9 and action[k] == 2):
               action[k] = 1
