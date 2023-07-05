@@ -4,6 +4,7 @@ import random
 
 from torch_ac.format import default_preprocess_obss
 from torch_ac.utils import DictList, ParallelEnv
+from torch_ac.agents.py_djinn_agent import DJINNAgent
 
 
 class BaseAlgo(ABC):
@@ -125,6 +126,16 @@ class BaseAlgo(ABC):
             reward, policy loss, value loss, etc.
         """
 
+        #Develope the local agent. (Heuristic rules, Decision Tree, DJINN, PPO)
+        AGENT_TYPE = 'djinn'
+        if AGENT_TYPE == 'djinn':
+            guide_agent = DJINNAgent(bot_name='djinn_lava',input_dim=6,output_dim=2)
+            #guide_agent = DJINNAgent(bot_name='djinn_lava',input_dim=len(self.obs[0]['image']),output_dim=2)
+
+ 
+
+
+
         for i in range(self.num_frames_per_proc):
             # Do one agent-environment interaction
 
@@ -136,18 +147,39 @@ class BaseAlgo(ABC):
                     dist, value = self.acmodel(preprocessed_obs)
             action = dist.sample()
             
-            
+            #DJINN based guide
             for k in (0,len(self.obs)-1):
-                 if(self.obs[k]['image'][3][-2][0] == 9 and action[k] == 2):
-                        if(random.random() > 0.5):
-                            action[k] = 1
-                        else:
-                            action[k] = 1
-            #print(len(self.obs))
-            #print(self.obs[0]['image'][3][-2][0])
-            #print(action)
-            #exit(0)
+                #If it is in the local area
+                if(self.obs[k]['image'][3][-2][0] == 9 and action[k] == 2):
+                      lava_obs = [self.obs[k]['image'][0][-2][0],self.obs[k]['image'][1][-2][0],self.obs[k]['image'][2][-2][0],self.obs[k]['image'][4][-2][0],self.obs[k]['image'][5][-2][0],self.obs[k]['image'][6][-2][0]]
+                      action[k] = guide_agent.get_action(lava_obs)
+                      print("actionkkkkk:",action[k])
 
+            '''
+            for k in (0,len(self.obs)-1):
+                #If it is in the local area
+                if(self.obs[k]['image'][3][-2][0] == 9 and action[k] == 2):
+                      action = guide_agent.get_action(self.obs[k]['image'])
+                      has_hole = 0
+                      for l in (0,len(self.obs[k]['image'])-1):
+                               hole = self.obs[k]['image'][l][-2][0]
+                               if(hole == 1):
+                                   has_hole = 1
+                                   if l < 3:
+                                       action[k] = 0
+                                   if l > 3:
+                                       action[k] = 1
+                                   break
+                      if(has_hole == 0):
+                           right_front = self.obs[k]['image'][-1][-2][0]
+                           if(right_front == 0 or right_front == 2):
+                               action[k] = 0
+                           else:
+                               action[k] = 1
+             '''
+#            for k in (0,len(self.obs)-1):
+#                 if(self.obs[k]['image'][3][-2][0] == 9 and action[k] == 2):
+#                            action[k] = 1
             obs, reward, terminated, truncated, _ = self.env.step(action.cpu().numpy())
             done = tuple(a | b for a, b in zip(terminated, truncated))
 
