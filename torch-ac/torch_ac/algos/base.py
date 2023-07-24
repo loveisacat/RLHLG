@@ -4,14 +4,16 @@ import random
 
 from torch_ac.format import default_preprocess_obss
 from torch_ac.utils import DictList, ParallelEnv
-from torch_ac.agents.py_djinn_agent import DJINNAgent
+#from torch_ac.agents.py_djinn_agent import DJINNAgent
+from torch_ac.opt_helpers.replay_buffer import discount_reward
+import numpy as np
 
 
 class BaseAlgo(ABC):
     """The base class for RL algorithms."""
 
     def __init__(self, envs, acmodel, device, num_frames_per_proc, discount, lr, gae_lambda, entropy_coef,
-                 value_loss_coef, max_grad_norm, recurrence, preprocess_obss, reshape_reward):
+                 value_loss_coef, max_grad_norm, recurrence, preprocess_obss, reshape_reward, local_guide):
         """
         Initializes a `BaseAlgo` instance.
 
@@ -44,6 +46,7 @@ class BaseAlgo(ABC):
         reshape_reward : function
             a function that shapes the reward, takes an
             (observation, action, reward, done) tuple as an input
+        local_guide : agent
         """
 
         # Store parameters
@@ -61,6 +64,7 @@ class BaseAlgo(ABC):
         self.recurrence = recurrence
         self.preprocess_obss = preprocess_obss or default_preprocess_obss
         self.reshape_reward = reshape_reward
+        self.local_guide = local_guide
 
         # Control parameters
 
@@ -127,13 +131,10 @@ class BaseAlgo(ABC):
         """
 
         #Develope the local agent. (Heuristic rules, Decision Tree, DJINN, PPO)
-        AGENT_TYPE = 'djinn'
-        if AGENT_TYPE == 'djinn':
-            guide_agent = DJINNAgent(bot_name='djinn_lava',input_dim=6,output_dim=2)
+        #AGENT_TYPE = 'djinn'
+        #if AGENT_TYPE == 'djinn':
+            #guide_agent = DJINNAgent(bot_name='djinn_lava',input_dim=6,output_dim=2)
             #guide_agent = DJINNAgent(bot_name='djinn_lava',input_dim=len(self.obs[0]['image']),output_dim=2)
-
- 
-
 
 
         for i in range(self.num_frames_per_proc):
@@ -146,20 +147,59 @@ class BaseAlgo(ABC):
                 else:
                     dist, value = self.acmodel(preprocessed_obs)
             action = dist.sample()
-            
+            #The rules for 4rooms
+            for k in (0,len(self.obs)-1):
+                '''
+                For 4rooms
+                #If the hole is in front of the agent
+                for j in (0,len(self.obs[k]['image'][3])-1):
+                        hole = self.obs[k]['image'][3][j][0]
+                        hole_l = self.obs[k]['image'][2][j][0]
+                        hole_r = self.obs[k]['image'][4][j][0]
+                        if(hole == 1 and hole_l == 2 and hole_r == 2):
+                            action[k] = 2
+                '''
+                #If the target 8 is in front of the agent
+                for a in (0,len(self.obs[k]['image'])-1):
+                    for b in (0,len(self.obs[k]['image'][a])-2):
+                        target = self.obs[k]['image'][a][b][0]
+                        if(target == 8):
+                            action[k] = 2
+                #If it is in the local area
+                if(self.obs[k]['image'][3][-2][0] == 2):
+                      has_hole = 0
+                      for l in (0,len(self.obs[k]['image'])-1):
+                               hole = self.obs[k]['image'][l][-2][0]
+                               if(hole == 1):
+                                   has_hole = 1
+                                   if l < 3:
+                                       action[k] = 0
+                                   if l > 3:
+                                       action[k] = 1
+                                   break
+                      if(has_hole == 0):
+                           right  = self.obs[k]['image'][-1][-1][0]
+                           left  = self.obs[k]['image'][0][-1][0]
+                           if (right == 2):
+                               action[k] = 0
+                           if (left == 2):
+                               action[k] = 1
+
+            ''' 
+            #For lavacrossing 
             #DJINN based guide
             for k in (0,len(self.obs)-1):
                 #If it is in the local area
                 if(self.obs[k]['image'][3][-2][0] == 9 and action[k] == 2):
                       lava_obs = [self.obs[k]['image'][0][-2][0],self.obs[k]['image'][1][-2][0],self.obs[k]['image'][2][-2][0],self.obs[k]['image'][4][-2][0],self.obs[k]['image'][5][-2][0],self.obs[k]['image'][6][-2][0]]
-                      action[k] = guide_agent.get_action(lava_obs)
-                      print("actionkkkkk:",action[k])
+                      action[k] = self.local_guide.get_action(lava_obs)
+                      #print("actionkkkkk:",action[k]," lava_obs:",lava_obs)
 
+            '''
             '''
             for k in (0,len(self.obs)-1):
                 #If it is in the local area
                 if(self.obs[k]['image'][3][-2][0] == 9 and action[k] == 2):
-                      action = guide_agent.get_action(self.obs[k]['image'])
                       has_hole = 0
                       for l in (0,len(self.obs[k]['image'])-1):
                                hole = self.obs[k]['image'][l][-2][0]
@@ -181,6 +221,7 @@ class BaseAlgo(ABC):
 #                 if(self.obs[k]['image'][3][-2][0] == 9 and action[k] == 2):
 #                            action[k] = 1
             obs, reward, terminated, truncated, _ = self.env.step(action.cpu().numpy())
+            #self.local_guide.save_reward(sum(reward))
             done = tuple(a | b for a, b in zip(terminated, truncated))
 
             # Update experiences values
@@ -219,9 +260,15 @@ class BaseAlgo(ABC):
             self.log_episode_return *= self.mask
             self.log_episode_reshaped_return *= self.mask
             self.log_episode_num_frames *= self.mask
-
+            '''       
+            reward_sum = np.sum(self.local_guide.replay_buffer.rewards_list)
+            rewards_list, advantage_list, deeper_advantage_list = discount_reward(self.local_guide.replay_buffer.rewards_list,self.local_guide.replay_buffer.value_list, self.local_guide.replay_buffer.deeper_value_list)
+            self.local_guide.replay_buffer.rewards_list = rewards_list
+            self.local_guide.replay_buffer.advantage_list = advantage_list
+            self.local_guide.replay_buffer.deeper_advantage_list = deeper_advantage_list
+            '''
         # Add advantage and return to experiences
-
+       
         preprocessed_obs = self.preprocess_obss(self.obs, device=self.device)
         with torch.no_grad():
             if self.acmodel.recurrent:
