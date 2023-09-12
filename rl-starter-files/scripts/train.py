@@ -8,7 +8,7 @@ import sys
 import utils
 from utils import device
 from model import ACModel
-
+from torch_ac.agents.py_djinn_agent import DJINNAgent
 
 # Parse arguments
 
@@ -125,8 +125,13 @@ if __name__ == "__main__":
     txt_logger.info("Model loaded\n")
     txt_logger.info("{}\n".format(acmodel))
 
-    # Load algo
+    #Generate Local Guide
+    #Develope the local agent. (Heuristic rules, Decision Tree, DJINN, PPO)
+    AGENT_TYPE = 'djinn'
+    if AGENT_TYPE == 'djinn':
+        guide_agent = DJINNAgent(bot_name='djinn_lava',input_dim=6,output_dim=2)
 
+    # Load algo
     if args.algo == "a2c":
         algo = torch_ac.A2CAlgo(envs, acmodel, device, args.frames_per_proc, args.discount, args.lr, args.gae_lambda,
                                 args.entropy_coef, args.value_loss_coef, args.max_grad_norm, args.recurrence,
@@ -134,7 +139,7 @@ if __name__ == "__main__":
     elif args.algo == "ppo":
         algo = torch_ac.PPOAlgo(envs, acmodel, device, args.frames_per_proc, args.discount, args.lr, args.gae_lambda,
                                 args.entropy_coef, args.value_loss_coef, args.max_grad_norm, args.recurrence,
-                                args.optim_eps, args.clip_eps, args.epochs, args.batch_size, preprocess_obss)
+                                args.optim_eps, args.clip_eps, args.epochs, args.batch_size, preprocess_obss, None, guide_agent)
     else:
         raise ValueError("Incorrect algorithm name: {}".format(args.algo))
 

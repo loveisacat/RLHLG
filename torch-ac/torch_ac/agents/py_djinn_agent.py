@@ -93,6 +93,8 @@ class DJINNAgent:
         return action
 
     def save_reward(self, reward):
+        if type(self.last_action) == int:
+          self.last_action = torch.tensor(self.last_action)
         self.replay_buffer.insert(obs=[self.last_state],
                                   action_log_probs=self.last_action_probs,
                                   value_preds=self.last_value_pred[self.last_action.item()],

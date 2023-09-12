@@ -21,9 +21,9 @@ DJINN_TREE_DATA = {
     },
 
     'lava': {
-        'feature': np.array([[3],[1]]),
-        'children_left': np.array([0,1]),
-        'children_right': np.array([1,1])
+        'feature': np.array([[2],[2],[2],[2],[2],[2]]),
+        'children_left': np.array([-1,-1,-1,1,1,1]),
+        'children_right': np.array([1,1,1,-1,-1,-1])
     },
 
 
@@ -74,6 +74,7 @@ DJINN_TREE_DATA = {
         'children_right': np.array([1, 2, -1, 4, -1, 6, -1, 8, -1, -1, 11, -1, 13, -1, 15, -1, 17, -1, -1]),
         'children_left': np.array([10, 3, -1, 5, -1, 7, -1, 9, -1, -1, 12, -1, 14, -1, 16, -1, 18, -1, -1])
     }
+
 }
 
 

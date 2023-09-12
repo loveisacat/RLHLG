@@ -147,18 +147,30 @@ class BaseAlgo(ABC):
                 else:
                     dist, value = self.acmodel(preprocessed_obs)
             action = dist.sample()
+            rules = True 
+            rules = False 
+            #The rules for keydoor
+            if(rules and self.env.envs[0].spec.id == 'MiniGrid-DoorKey-6x6-v0'):
+             for k in (0,len(self.obs)-1):
+                # If is in front a door
+                carrying = self.env.envs[k].carrying
+                front = self.obs[k]['image'][3][-2]
+                if(front[0] == 5):#key
+                    action[k] = 3 #pickup
+                if(front[0] == 4 and front[2] ==2 and carrying != None): #Door
+                    action[k] = 5 #toggle
+               
             #The rules for 4rooms
-            for k in (0,len(self.obs)-1):
-                '''
-                For 4rooms
-                #If the hole is in front of the agent
+            elif(rules and 'MiniGrid-FourRooms-v0' == self.env.envs[0].spec.id):
+              for k in (0,len(self.obs)-1):
+                #If the hole is in front of the agent(not work well)
                 for j in (0,len(self.obs[k]['image'][3])-1):
                         hole = self.obs[k]['image'][3][j][0]
                         hole_l = self.obs[k]['image'][2][j][0]
                         hole_r = self.obs[k]['image'][4][j][0]
                         if(hole == 1 and hole_l == 2 and hole_r == 2):
                             action[k] = 2
-                '''
+                #For 4rooms
                 #If the target 8 is in front of the agent
                 for a in (0,len(self.obs[k]['image'])-1):
                     for b in (0,len(self.obs[k]['image'][a])-2):
@@ -184,20 +196,19 @@ class BaseAlgo(ABC):
                                action[k] = 0
                            if (left == 2):
                                action[k] = 1
-
-            ''' 
             #For lavacrossing 
             #DJINN based guide
-            for k in (0,len(self.obs)-1):
+            elif(rules):
+             '''
+             for k in (0,len(self.obs)-1):
                 #If it is in the local area
                 if(self.obs[k]['image'][3][-2][0] == 9 and action[k] == 2):
                       lava_obs = [self.obs[k]['image'][0][-2][0],self.obs[k]['image'][1][-2][0],self.obs[k]['image'][2][-2][0],self.obs[k]['image'][4][-2][0],self.obs[k]['image'][5][-2][0],self.obs[k]['image'][6][-2][0]]
                       action[k] = self.local_guide.get_action(lava_obs)
                       #print("actionkkkkk:",action[k]," lava_obs:",lava_obs)
 
-            '''
-            '''
-            for k in (0,len(self.obs)-1):
+             '''
+             for k in (0,len(self.obs)-1):
                 #If it is in the local area
                 if(self.obs[k]['image'][3][-2][0] == 9 and action[k] == 2):
                       has_hole = 0
@@ -216,7 +227,6 @@ class BaseAlgo(ABC):
                                action[k] = 0
                            else:
                                action[k] = 1
-             '''
 #            for k in (0,len(self.obs)-1):
 #                 if(self.obs[k]['image'][3][-2][0] == 9 and action[k] == 2):
 #                            action[k] = 1
